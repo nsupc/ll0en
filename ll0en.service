@@ -1,0 +1,14 @@
+[Unit]
+Description=ll0en NationStates WA Monitor
+After=network.target
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/ll0en /etc/ll0en-config.yml
+Restart=always
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ll0en
