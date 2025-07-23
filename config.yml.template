@@ -1,0 +1,23 @@
+---
+user: 
+region: 
+max_requests: 
+eurocore:
+    username: 
+    password: 
+    url: 
+telegrams:
+    move:
+        template: 
+        id:
+        key:
+        author:
+    resign:
+        template: 
+        id:
+        key:
+        author:
+log:
+    level: 
+    token:
+    endpoint:
