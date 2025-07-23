@@ -39,9 +39,11 @@ func main() {
 			return
 		}
 
-		if resignRegex.Match([]byte(e.Data)) {
+		if resignRegex.Match([]byte(event.Text)) {
+			slog.Debug("resignation", slog.String("event", event.Text))
+
 			go func() {
-				matches := resignRegex.FindStringSubmatch(e.Data)
+				matches := resignRegex.FindStringSubmatch(event.Text)
 				nationName := matches[1]
 
 				var telegram models.NewTelegram
@@ -57,26 +59,32 @@ func main() {
 					telegram.Secret = tmpl.Key
 					telegram.Recipient = nationName
 					telegram.Sender = tmpl.Nation
+					telegram.Type = "standard"
 				} else {
 					telegram.Id = strconv.Itoa(config.Telegrams.Resign.Id)
 					telegram.Secret = config.Telegrams.Resign.Key
 					telegram.Recipient = nationName
 					telegram.Sender = config.Telegrams.Resign.Author
+					telegram.Type = "standard"
 				}
 
 				err = eurocoreClient.SendTelegram(telegram)
 				if err != nil {
 					slog.Error("unable to send resign telegram", slog.Any("error", err))
 					return
+				} else {
+					slog.Info("resign telegram sent", slog.String("nation", nationName))
 				}
 			}()
 
 			return
 		}
 
-		if moveRegex.Match([]byte(e.Data)) {
+		if moveRegex.Match([]byte(event.Text)) {
+			slog.Debug("move", slog.String("event", event.Text))
+
 			go func() {
-				matches := moveRegex.FindStringSubmatch(e.Data)
+				matches := moveRegex.FindStringSubmatch(event.Text)
 				nationName := matches[1]
 
 				eligibility, err := nsClient.IsRecruitmentEligible(nationName, config.Region)
@@ -99,17 +107,21 @@ func main() {
 						telegram.Secret = tmpl.Key
 						telegram.Recipient = nationName
 						telegram.Sender = tmpl.Nation
+						telegram.Type = "recruitment"
 					} else {
 						telegram.Id = strconv.Itoa(config.Telegrams.Move.Id)
 						telegram.Secret = config.Telegrams.Move.Key
 						telegram.Recipient = nationName
 						telegram.Sender = config.Telegrams.Move.Author
+						telegram.Type = "recruitment"
 					}
 
 					err = eurocoreClient.SendTelegram(telegram)
 					if err != nil {
 						slog.Error("unable to send resign telegram", slog.Any("error", err))
 						return
+					} else {
+						slog.Info("move telegram sent", slog.String("nation", nationName))
 					}
 				} else {
 					slog.Info("nation not eligible for recruitment", slog.String("nation", nationName), slog.String("region", eligibility.Region))
