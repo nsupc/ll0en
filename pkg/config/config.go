@@ -115,10 +115,8 @@ func (c *Config) initLogger() {
 	slog.SetDefault(logger)
 }
 
-// watches config from ./config.yml or a custom location which can be passed to the
-// application as its first argument
-//
-// the file is watched for changes, which will reload the config
+// pulls config from ./config.yml or a custom location which can be passed to the
+// application as its first cli argument
 func Read() (*Config, error) {
 	var path string
 
