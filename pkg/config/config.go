@@ -13,14 +13,11 @@ import (
 
 type Telegram struct {
 	Template string `yaml:"template"`
-	Id       int    `yaml:"id"`
-	Key      string `yaml:"key"`
-	Author   string `yaml:"author"`
 }
 
 func (t *Telegram) validate() error {
-	if t.Template == "" && (t.Id == 0 || t.Key == "" || t.Author == "") {
-		return errors.New("either telegram template or id, key, and author must be set")
+	if t.Template == "" {
+		return errors.New("telegram template must be set")
 	}
 
 	return nil

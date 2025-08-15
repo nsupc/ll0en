@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"ll0en/pkg/config"
 	"ll0en/pkg/ns"
@@ -12,8 +11,7 @@ import (
 	"strconv"
 
 	"github.com/nsupc/eurogo/client"
-	"github.com/nsupc/eurogo/models"
-	gsse "github.com/tmaxmax/go-sse"
+	"github.com/nsupc/eurogo/telegrams"
 )
 
 func main() {
@@ -30,43 +28,21 @@ func main() {
 	eurocoreClient := client.New(config.Eurocore.Username, config.Eurocore.Password, config.Eurocore.BaseUrl)
 
 	happeningsUrl := fmt.Sprintf("https://www.nationstates.net/api/region:%s", config.Region)
-	err = sse.New().Subscribe(happeningsUrl, func(e gsse.Event) {
-		event := sse.Event{}
-
-		err = json.Unmarshal([]byte(e.Data), &event)
-		if err != nil {
-			slog.Error("unable to unmarshal event", slog.Any("error", e))
-			return
-		}
-
-		if resignRegex.Match([]byte(event.Text)) {
-			slog.Debug("resignation", slog.String("event", event.Text))
+	sse.New(happeningsUrl).Subscribe(func(e sse.Event) {
+		if resignRegex.Match([]byte(e.Text)) {
+			slog.Debug("resignation", slog.String("event", e.Text))
 
 			go func() {
-				matches := resignRegex.FindStringSubmatch(event.Text)
+				matches := resignRegex.FindStringSubmatch(e.Text)
 				nationName := matches[1]
 
-				var telegram models.NewTelegram
-
-				if config.Telegrams.Resign.Template != "" {
-					tmpl, err := eurocoreClient.GetTemplate(config.Telegrams.Resign.Template)
-					if err != nil {
-						slog.Error("unable to retrieve telegram template", slog.Any("error", err))
-						return
-					}
-
-					telegram.Id = strconv.Itoa(tmpl.Tgid)
-					telegram.Secret = tmpl.Key
-					telegram.Recipient = nationName
-					telegram.Sender = tmpl.Nation
-					telegram.Type = "standard"
-				} else {
-					telegram.Id = strconv.Itoa(config.Telegrams.Resign.Id)
-					telegram.Secret = config.Telegrams.Resign.Key
-					telegram.Recipient = nationName
-					telegram.Sender = config.Telegrams.Resign.Author
-					telegram.Type = "standard"
+				tmpl, err := eurocoreClient.GetTemplate(config.Telegrams.Resign.Template)
+				if err != nil {
+					slog.Error("unable to retrieve telegram template", slog.Any("error", err))
+					return
 				}
+
+				telegram := telegrams.New(tmpl.Nation, nationName, strconv.Itoa(tmpl.Tgid), tmpl.Key, telegrams.Standard)
 
 				err = eurocoreClient.SendTelegram(telegram)
 				if err != nil {
@@ -80,11 +56,11 @@ func main() {
 			return
 		}
 
-		if moveRegex.Match([]byte(event.Text)) {
-			slog.Debug("move", slog.String("event", event.Text))
+		if moveRegex.Match([]byte(e.Text)) {
+			slog.Debug("move", slog.String("event", e.Text))
 
 			go func() {
-				matches := moveRegex.FindStringSubmatch(event.Text)
+				matches := moveRegex.FindStringSubmatch(e.Text)
 				nationName := matches[1]
 
 				eligibility, err := nsClient.IsRecruitmentEligible(nationName, config.Region)
@@ -94,31 +70,17 @@ func main() {
 				}
 
 				if eligibility.CanRecruit {
-					var telegram models.NewTelegram
-
-					if config.Telegrams.Move.Template != "" {
-						tmpl, err := eurocoreClient.GetTemplate(config.Telegrams.Move.Template)
-						if err != nil {
-							slog.Error("unable to retrieve telegram template", slog.Any("error", err))
-							return
-						}
-
-						telegram.Id = strconv.Itoa(tmpl.Tgid)
-						telegram.Secret = tmpl.Key
-						telegram.Recipient = nationName
-						telegram.Sender = tmpl.Nation
-						telegram.Type = "recruitment"
-					} else {
-						telegram.Id = strconv.Itoa(config.Telegrams.Move.Id)
-						telegram.Secret = config.Telegrams.Move.Key
-						telegram.Recipient = nationName
-						telegram.Sender = config.Telegrams.Move.Author
-						telegram.Type = "recruitment"
+					tmpl, err := eurocoreClient.GetTemplate(config.Telegrams.Move.Template)
+					if err != nil {
+						slog.Error("unable to retrieve telegram template", slog.Any("error", err))
+						return
 					}
+
+					telegram := telegrams.New(tmpl.Nation, nationName, strconv.Itoa(tmpl.Tgid), tmpl.Key, telegrams.Recruitment)
 
 					err = eurocoreClient.SendTelegram(telegram)
 					if err != nil {
-						slog.Error("unable to send resign telegram", slog.Any("error", err))
+						slog.Error("unable to send move telegram", slog.Any("error", err))
 						return
 					} else {
 						slog.Info("move telegram sent", slog.String("nation", nationName))
